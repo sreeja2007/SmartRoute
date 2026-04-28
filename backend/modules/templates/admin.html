@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Supply Chain Operations Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #F5F6F8;
+            color: #111827;
+            overflow-x: hidden;
+        }
+        
+        /* Header */
+        .header {
+            background: #1F2937;
+            color: white;
+            padding: 20px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        
+        .header-subtitle {
+            font-size: 14px;
+            color: #9CA3AF;
+            margin-top: 4px;
+        }
+        
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(124, 58, 237, 0.1);
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #10B981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .marker-pulse {
+            animation: pulse-marker 0.3s ease-out;
+        }
+        
+        .truck-icon {
+            filter: drop-shadow(0 0 3px rgba(0,0,0,0.6));
+        }
+        
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+            min-height: 600px;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 380px;
+            background: white;
+            padding: 24px;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #E5E7EB;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .stat-item {
+            background: #F9FAFB;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6B7280;
+            margin-bottom: 4px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+        }
+        
+        .stat-value.accent {
+            color: #7C3AED;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-primary {
+            background: #7C3AED;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #6D28D9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #374151;
+            color: white;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: #1F2937;
+        }
+        
+        .btn-warning {
+            background: #F59E0B;
+            color: white;
+        }
+        
+        .btn-warning:hover:not(:disabled) {
+            background: #D97706;
+        }
+        
+        .btn-success {
+            background: #10B981;
+            color: white;
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+        }
+        
+        /* Map Area */
+        .map-container {
+            flex: 1;
+            padding: 24px;
+            position: relative;
+            min-height: 500px;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .fleet-status {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            background: white;
+            padding: 10px 14px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            width: 200px;
+            z-index: 1000;
+            font-size: 12px;
+        }
+        
+        .fleet-status-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #111827;
+        }
+        
+        .fleet-info {
+            font-size: 13px;
+            color: #6B7280;
+            margin-bottom: 6px;
+        }
+        
+        .fleet-info strong {
+            color: #111827;
+        }
+        
+        .route-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .metric-box {
+            background: #F9FAFB;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 11px;
+            color: #6B7280;
+            margin-bottom: 4px;
+        }
+        
+        .metric-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #7C3AED;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #E5E7EB;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #7C3AED, #A78BFA);
+            transition: width 0.3s;
+        }
+        .truck-marker {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+        }
+
+        .truck-stat-card {
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-left: 4px solid;
+        }
+
+        .truck-stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .truck-stat-name {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .efficiency-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            color: white;
+        }
+
+        .truck-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .truck-stat-item {
+            text-align: center;
+        }
+
+        .truck-stat-label {
+            font-size: 10px;
+            color: #6B7280;
+        }
+
+        .truck-stat-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        /* Animations */
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+            }
+            50% {
+                transform: scale(1.2);
+                box-shadow: 0 4px 16px rgba(59, 130, 246, 0.6);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <div class="header-title">Smart Supply Chain Operations Dashboard</div>
+            <div class="header-subtitle">AI-Powered Delivery Route Optimization System</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div class="system-status">
+                <div class="status-dot"></div>
+                <span id="systemStatus">System Active</span>
+            </div>
+            <button onclick="document.getElementById('legendModal').style.display='flex'" style="background:#374151;color:white;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;" title="Map Legend">ℹ️</button>
+        </div>
+    </div>
+
+    <!-- Legend Modal -->
+    <div id="legendModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:white;border-radius:12px;padding:24px;min-width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <span style="font-size:16px;font-weight:700;">📍 Map Legend</span>
+                <button onclick="document.getElementById('legendModal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6B7280;">✕</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+                <div style="font-size:11px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;">Order Markers</div>
+                <div style="display:flex;align-items:center;gap:10px;"><div style="width:24px;height:24px;border-radius:50%;background:#F97316;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;font-size:11px;">📦</div><span><b>Pending Order</b> — awaiting delivery</span></div>
+                <div style="display:flex;align-items:center;gap:10px;"><div style="width:24px;height:24px;border-radius:50%;background:#10B981;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:11px;">✅</div><span><b>Delivered Order</b> — completed delivery</span></div>
+                <div style="display:flex;align-items:center;gap:10px;"><div style="width:40px;height:40px;border-radius:50%;background:#EF4444;border:3px solid white;box-shadow:0 4px 12px rgba(239,68,68,0.4);display:flex;align-items:center;justify-content:center;font-size:16px;">🏢</div><span><b>Main Depot / Warehouse</b> — all trucks start &amp; return here</span></div>
+                <div style="font-size:11px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;margin-top:4px;">Vehicle Markers</div>
+                <div style="display:flex;align-items:center;gap:10px;"><div style="width:36px;height:36px;border-radius:50%;background:#DC2626;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:18px;">🚚</div><span><b>Active Delivery Truck</b> — moving along route (color = vehicle ID)</span></div>
+                <div style="display:flex;align-items:center;gap:10px;"><div style="width:36px;height:36px;border-radius:50%;background:#10B981;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:18px;">✅</div><span><b>Completed Truck</b> — finished all deliveries</span></div>
+                <div style="display:flex;align-items:center;gap:10px;"><div style="width:28px;height:28px;border-radius:50%;background:#F59E0B;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:14px;">🏁</div><span><b>Route End Point</b> — final position of completed truck</span></div>
+                <div style="font-size:11px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding-bottom:4px;border-bottom:1px solid #E5E7EB;margin-top:4px;">Routes &amp; Alerts</div>
+                <div style="display:flex;align-items:center;gap:10px;"><div style="display:flex;gap:3px;">
+                    <div style="width:14px;height:4px;background:#DC2626;border-radius:2px;"></div>
+                    <div style="width:14px;height:4px;background:#2563EB;border-radius:2px;"></div>
+                    <div style="width:14px;height:4px;background:#059669;border-radius:2px;"></div>
+                </div><span><b>Optimized Route Lines</b> — one color per vehicle, with direction arrows</span></div>
+                <div style="display:flex;align-items:center;gap:10px;"><div style="width:24px;height:24px;border-radius:50%;background:#F59E0B;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:11px;">⚠️</div><span><b>Weather / Risk Alert</b> — disruption zone on route</span></div>
+                <div style="font-size:11px;color:#6B7280;margin-top:4px;padding:6px 8px;background:#F9FAFB;border-radius:6px;">💡 Click any pending order marker to manually toggle its delivery status</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- City Overview -->
+            <div class="card">
+                <div class="card-title">🏙️ City Overview</div>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Total Orders</div>
+                        <div class="stat-value" id="totalOrders">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Pending Orders</div>
+                        <div class="stat-value accent" id="pendingOrders">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Pending</div>
+                        <div class="stat-value" id="pendingOrdersCount">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Delivered</div>
+                        <div class="stat-value accent" id="deliveredOrdersCount">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Route Metrics -->
+            <div class="card" id="routeMetricsCard" style="display:none;">
+                <div class="card-title">📊 Fleet Metrics</div>
+                <!-- Summary row -->
+                <div class="route-metrics" style="margin-bottom:12px;">
+                    <div class="metric-box">
+                        <div class="metric-label">Total Distance</div>
+                        <div class="metric-value" id="routeDistance">-</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">Total Stops</div>
+                        <div class="metric-value" id="routeStops">-</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">Avg Efficiency</div>
+                        <div class="metric-value" id="routeEfficiency">-</div>
+                    </div>
+                </div>
+                <!-- Fuel & CO2 savings -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px;text-align:center;">
+                        <div style="font-size:10px;color:#059669;font-weight:600;">⛽ Fuel Saved</div>
+                        <div style="font-size:18px;font-weight:700;color:#059669;" id="fuelSaved">-</div>
+                    </div>
+                    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px;text-align:center;">
+                        <div style="font-size:10px;color:#2563EB;font-weight:600;">🌿 CO₂ Reduced</div>
+                        <div style="font-size:18px;font-weight:700;color:#2563EB;" id="co2Reduced">-</div>
+                    </div>
+                </div>
+                <!-- Per-truck breakdown -->
+                <div id="perTruckMetrics"></div>
+            </div>
+            
+            
+            <!-- System Controls -->
+            <div class="card">
+                <div class="card-title">⚙️ System Controls</div>
+                <div style="display:flex;align-items:center;gap:8px;background:#f8fafc;padding:8px 12px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:12px;">
+                    <label for="vehicleCount" style="font-size:13px;color:#475569;font-weight:500;">Fleet Size:</label>
+                    <input type="number" id="vehicleCount" min="1" max="10" value="3" style="width:70px;padding:6px 8px;border:2px solid #3b82f6;border-radius:6px;font-size:14px;font-weight:600;background:white;color:#1e293b;outline:none;transition:border-color 0.2s;">
+                    <span style="font-size:12px;color:#64748b;">vehicles</span>
+                </div>
+                <button id="uploadCsvBtn" class="btn btn-warning">📁 Upload CSV & Load Map</button>
+                <input type="file" id="csvUpload" accept="text/csv" style="display:none;">
+                <button id="optimizeRouteBtn" class="btn btn-success" disabled="">Optimize Delivery Routes</button>
+                <button id="spawnTruckBtn" class="btn btn-primary" disabled="">Deploy Delivery Fleet</button>
+                <button id="resetBtn" class="btn btn-secondary">Reset System</button>
+                
+                
+                            </div>
+        </div>
+        
+        <!-- Map Area -->
+        <div class="map-container">
+            <div id="map" style="width:100%;min-height:500px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+            
+            <!-- Disruption Alerts Panel -->
+            <div id="disruptionPanel" style="position:absolute;top:40px;left:40px;z-index:1000;display:none;width:300px;max-height:320px;overflow-y:auto;">
+                <div style="background:#1e293b;color:white;padding:14px;border-radius:10px;font-size:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <span style="color:#fbbf24;font-size:13px;font-weight:700;background:#1e293b;padding:4px 8px;border-radius:4px;">⚠️ Route Alerts</span>
+                        <button onclick="document.getElementById('disruptionPanel').style.display='none'" style="background:none;border:none;color:#9CA3AF;cursor:pointer;font-size:16px;line-height:1;">✕</button>
+                    </div>
+                    <div id="disruptionData">Loading...</div>
+                </div>
+            </div>
+            
+            
+            <!-- Fleet Status Overlay -->
+            <div class="fleet-status" id="fleetStatus" style="display:none;">
+                <div class="fleet-status-title">🚛 Fleet Status</div>
+                <div class="fleet-info"><strong>Active Trucks:</strong> <span id="activeTrucksCount">0</span></div>
+                <div class="fleet-info"><strong>Overall Progress:</strong> <span id="overallProgress">0%</span></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="overallProgressFill" style="width: 0%"></div>
+                </div>
+                
+                <!-- Individual Truck Status -->
+                <div id="individualTruckStatus" style="margin-top: 15px;">
+                    <div class="fleet-status-title" style="font-size: 14px;">🚛 Individual Trucks</div>
+                    <div id="truckStatusList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css">
+    <script src="https://unpkg.com/leaflet-polylinedecorator/dist/leaflet.polylineDecorator.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    
+    <script>
+        let map, markers = {}, routeLines = {}, truckMarkers = {};
+        let cityGenerated = false;
+        let mapFitted = false;
+        let zonePolygons = [];
+        // Tracks how far each truck has travelled along its route (pathIndex per truck)
+        // Used to shrink routes correctly without relying on polling
+        let truckPathProgress = {};
+        let routeFinished = {}; // tracks trucks that completed their route
+        let simulationData = {
+            orders: [],
+            locations: [],
+            pendingOrders: [],
+            deliveredOrders: [],
+            distributionCenters: [],
+            cityGenerated: false,
+            orderUploadActive: false,
+            orderUploadEnded: false,
+            routeOptimized: false,
+            multiVehicleRoutes: [],
+            activeVehicles: []
+        };
+
+        function initMap() {
+            console.log('🔍 Initializing map...');
+            map = L.map('map').setView([13.0827, 80.2707], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            console.log('✅ Map initialized successfully');
+        }
+        
+        function updateStatistics() {
+            // Always update — even with empty orders (shows zeros on reset)
+            const realOrders = (simulationData.orders || []).filter(o =>
+                o.type === 'order' && o.source !== 'background' && o.delivery_status !== 'background'
+            );
+            const total = realOrders.length;
+            const delivered = realOrders.filter(o => o.delivery_status === 'delivered').length;
+            const pending = realOrders.filter(o => o.delivery_status === 'pending').length;
+            document.getElementById('totalOrders').innerText = total;
+            document.getElementById('pendingOrders').innerText = pending;
+            document.getElementById('pendingOrdersCount').innerText = pending;
+            document.getElementById('deliveredOrdersCount').innerText = delivered;
+        }
+        
+        function clearMarkers() {
+            Object.values(markers).forEach(m => { if (m && map.hasLayer(m)) map.removeLayer(m); });
+            // NOTE: routeLines and truckMarkers are NOT cleared here — managed separately
+            zonePolygons.forEach(p => { if (map.hasLayer(p)) map.removeLayer(p); });
+            zonePolygons = [];
+            markers = {};
+        }
+
+        function makeOrderIcon(order) {
+            let html, size;
+            if (order.delivery_status === 'delivered') {
+                html = `<div style="background:#10B981;width:28px;height:28px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;font-size:13px;">✅</div>`;
+                size = [28, 28];
+            } else if (order.delivery_status === 'background' || order.source === 'background') {
+                // Unassigned background order — orange, slightly smaller, no shadow
+                html = `<div style="background:#F97316;width:20px;height:20px;border-radius:50%;border:1.5px solid white;opacity:0.6;display:flex;align-items:center;justify-content:center;font-size:10px;">📦</div>`;
+                size = [20, 20];
+                        } else {
+                // Pending order — orange
+                html = `<div style="background:#F97316;width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 8px rgba(249,115,22,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;">📦</div>`;
+                size = [24, 24];
+            }
+            return L.divIcon({ html, iconSize: size, iconAnchor: [size[0]/2, size[1]/2], className: '' });
+        }
+
+        function addOrderMarkers() {
+            if (!map || !simulationData.orders || simulationData.orders.length === 0) return;
+
+            // Always fully destroy and recreate — never reuse old marker objects
+            if (window.orderLayer) {
+                window.orderLayer.clearLayers();
+                map.removeLayer(window.orderLayer);
+            }
+            window.orderLayer = L.layerGroup();
+            markers = {};
+
+            const depotIcon = L.divIcon({
+                html: '<div style="background:#EF4444;width:40px;height:40px;border-radius:50%;border:3px solid white;box-shadow:0 4px 12px rgba(239,68,68,0.4);display:flex;align-items:center;justify-content:center;font-size:16px;">🏢</div>',
+                iconSize: [40,40], iconAnchor: [20,20], className: ''
+            });
+            L.marker([13.0827, 80.2707], { icon: depotIcon }).addTo(window.orderLayer);
+
+            simulationData.orders.forEach(order => {
+                if (order.type === 'distribution_center') return;
+                if (!order.lat || !order.lng) return;
+                try {
+                    const icon = makeOrderIcon(order);
+                    const isBackground = order.delivery_status === 'background' || order.source === 'background';
+                    const marker = L.marker([order.lat, order.lng], { icon }).addTo(window.orderLayer);
+                    if (!isBackground) {
+                        marker.on('click', () => toggleOrderStatus(order.id));
+                        marker.bindPopup(`<div style="padding:6px;"><strong>${order.id}</strong><br>Status: ${order.delivery_status || 'pending'}</div>`);
+                    }
+                    markers[order.id] = marker;
+                } catch (e) {}
+            });
+
+            window.orderLayer.addTo(map);
+
+            if (!mapFitted) {
+                const bounds = simulationData.orders.filter(o => o.lat && o.lng).map(o => [o.lat, o.lng]);
+                if (bounds.length > 0) {
+                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+                    mapFitted = true;
+                }
+            }
+        }
+        
+        function drawOptimizedRoute(multiVehicleRoutes) {
+            console.log("🔥 Drawing optimized routes...");
+            console.log('🔍 DEBUG: drawOptimizedRoute called with:', multiVehicleRoutes);
+            
+            // Safety check
+            if (!multiVehicleRoutes || !Array.isArray(multiVehicleRoutes)) {
+                console.error('❌ Invalid routes data in drawOptimizedRoute:', multiVehicleRoutes);
+                return;
+            }
+            
+            // Clear existing routes COMPLETELY
+            if (routeLines) {
+                Object.values(routeLines).forEach(line => {
+                    if (line && map.hasLayer(line)) map.removeLayer(line);
+                });
+            }
+            routeLines = {};
+            
+            // Also clear any decorator arrows
+            if (map) {
+                map.eachLayer((layer) => {
+                    if (layer.options && layer.options.patterns) map.removeLayer(layer);
+                });
+            }
+            
+            const vehicleColors = ['#DC2626', '#2563EB', '#059669', '#EA580C', '#7C3AED'];
+            
+            if (multiVehicleRoutes.length === 0) {
+                console.log('📝 No routes to draw');
+                return;
+            }
+            
+            multiVehicleRoutes.forEach((routeData, index) => {
+                const vehicleId = routeData.vehicle_id;
+                const routeCoordinates = routeData.route_coordinates;
+                const color = vehicleColors[index % vehicleColors.length];
+                
+                if (!routeCoordinates || routeCoordinates.length === 0) return;
+
+                // Use local progress tracker — never reset from polling
+                const pathIndex = truckPathProgress[vehicleId] || 0;
+
+                // If vehicle finished, remove its route line entirely
+                if (routeFinished[vehicleId]) {
+                    if (routeLines[vehicleId] && map.hasLayer(routeLines[vehicleId])) {
+                        map.removeLayer(routeLines[vehicleId]);
+                    }
+                    delete routeLines[vehicleId];
+                    return;
+                }
+
+                const remainingPath = routeCoordinates.slice(pathIndex);
+                if (remainingPath.length < 2) return;
+
+                const leafletCoords = remainingPath.map(coord => [coord[0], coord[1]]);
+                
+                const routeLine = L.polyline(leafletCoords, {
+                    color: color,
+                    weight: 7,
+                    opacity: 0.95,
+                    smoothFactor: 1
+                }).addTo(map);
+                routeLine.bringToFront();
+                
+                L.polylineDecorator(routeLine, {
+                    patterns: [{
+                        offset: '10%', repeat: '15%',
+                        symbol: L.Symbol.arrowHead({
+                            pixelSize: 12, polygon: false,
+                            pathOptions: { color: 'white', weight: 3, opacity: 0.9 }
+                        })
+                    }]
+                }).addTo(map);
+                
+                routeLines[vehicleId] = routeLine;
+            });
+        }
+        
+        function spawnTruck() {
+            // Only clear existing trucks, keep routes and orders
+            if (typeof truckMarkers !== 'undefined' && truckMarkers) {
+                Object.values(truckMarkers).forEach(marker => {
+                    if (marker.truck && map.hasLayer(marker.truck)) map.removeLayer(marker.truck);
+                    if (marker.label && map.hasLayer(marker.label)) map.removeLayer(marker.label);
+                });
+            }
+            truckMarkers = {};
+            if (typeof animationTimers !== 'undefined' && animationTimers) {
+                Object.values(animationTimers).forEach(t => clearTimeout(t));
+            }
+
+            const vehicleColors = ['#DC2626', '#2563EB', '#059669', '#EA580C', '#7C3AED'];
+
+            // Build per-vehicle progress rows in fleet status panel
+            const statusList = document.getElementById('truckStatusList');
+            statusList.innerHTML = '';
+            
+            console.log('🔥 DEBUG: simulationData.activeVehicles:', simulationData.activeVehicles);
+            
+            const activeVehicles = Array.isArray(simulationData.activeVehicles) ? simulationData.activeVehicles : [];
+            activeVehicles.forEach((vehicleId, index) => {
+                
+                const routeData = simulationData.multiVehicleRoutes.find(r => r.vehicle_id === vehicleId);
+                if (!routeData || !routeData.route_coordinates.length) return;
+
+                const color = vehicleColors[index % vehicleColors.length];
+                // 🔥 CRITICAL: Force ALL trucks to use warehouse coordinates to fix V3 issue
+                let startPos = [13.0827, 80.2707]; // Main Warehouse - FORCED
+                
+                // All trucks always spawn at the main warehouse
+                console.log(`🚛 ${vehicleId} spawning at warehouse:`, startPos);
+
+                const vehicleIcon = L.divIcon({
+                    html: `<div style="background:${color};color:white;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.5);">🚚</div>`,
+                    iconSize: [36, 36], iconAnchor: [18, 18], className: 'vehicle-icon'
+                });
+                const vehicleMarker = L.marker(startPos, { icon: vehicleIcon })
+                    .addTo(map);
+                const vehicleLabel = L.marker(startPos, {
+                    icon: L.divIcon({
+                        html: `<div style="background:${color};color:white;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:bold;border:1px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.5);white-space:nowrap;">${vehicleId}</div>`,
+                        className: '', iconSize: [40, 16], iconAnchor: [20, -20]
+                    })
+                }).addTo(map);
+
+                truckMarkers[vehicleId] = { truck: vehicleMarker, label: vehicleLabel };
+
+                // Progress row
+                const row = document.createElement('div');
+                row.style.cssText = 'margin-bottom:8px;padding:8px;background:rgba(255,255,255,0.1);border-radius:4px;font-size:12px;';
+                row.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-weight:bold;color:${color}">${vehicleId}</span>
+                        <span id="truckPct_${vehicleId}">0%</span>
+                    </div>
+                    <div class="progress-bar" style="height:4px;margin-top:4px;">
+                        <div id="truckBar_${vehicleId}" class="progress-fill" style="width:0%;background:${color};"></div>
+                    </div>`;
+                statusList.appendChild(row);
+
+                // Start frontend animation
+                animateTruck(vehicleId, routeData.route_coordinates, color);
+            });
+
+            // Show fleet status panel and update it
+            document.getElementById('fleetStatus').style.display = 'block';
+            updateFleetStatus();
+            console.log(`✅ Spawned ${activeVehicles.length} vehicles on map`);
+        }
+        
+        // ── Frontend truck animation (runs locally, no backend polling needed) ──
+        const animationTimers = {};
+
+        function animateTruck(truckId, routeCoords, color) {
+            // Always force first AND last coordinate to warehouse
+            const WAREHOUSE = [13.0827, 80.2707];
+            // Use full backend route but override first point to exact warehouse
+            const coords = routeCoords.map((c, idx) => idx === 0 ? [...WAREHOUSE] : [c[0], c[1]]);
+            // Ensure last point is also warehouse
+            coords[coords.length - 1] = [...WAREHOUSE];
+            let i = 0;
+            const total = coords.length;
+
+            function step() {
+                if (i >= total) {
+                    routeFinished[truckId] = true;
+                    if (routeLines[truckId] && map.hasLayer(routeLines[truckId])) map.removeLayer(routeLines[truckId]);
+                    delete routeLines[truckId];
+                    if (truckMarkers[truckId]) {
+                        const finishedIcon = L.divIcon({
+                            html: `<div style="background:#10B981;color:white;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid white;box-shadow:0 2px 8px rgba(16,185,129,0.5);">✅</div>`,
+                            iconSize: [36, 36], iconAnchor: [18, 18], className: 'vehicle-finished-icon'
+                        });
+                        truckMarkers[truckId].truck.setIcon(finishedIcon);
+                        const finalCoords = coords[coords.length - 1];
+                        const destinationIcon = L.divIcon({
+                            html: `<div style="background:#F59E0B;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 8px rgba(245,158,11,0.6);">🏁</div>`,
+                            iconSize: [28, 28], iconAnchor: [14, 14], className: 'destination-icon'
+                        });
+                        const destinationMarker = L.marker(finalCoords, { icon: destinationIcon })
+                            .addTo(map)
+                            .bindPopup(`<div style="padding:6px;"><strong>${truckId} Finished</strong><br>Route completed at this location</div>`);
+                        if (!window.destinationMarkers) window.destinationMarkers = {};
+                        window.destinationMarkers[truckId] = destinationMarker;
+                    }
+                    const pctEl = document.getElementById(`truckPct_${truckId}`);
+                    const barEl = document.getElementById(`truckBar_${truckId}`);
+                    if (pctEl) pctEl.textContent = '100%';
+                    if (barEl) barEl.style.width = '100%';
+                    updateOverallProgress();
+                    return;
+                }
+
+                truckPathProgress[truckId] = i;
+                const [lat, lng] = coords[i];
+                const tm = truckMarkers[truckId];
+                if (tm) {
+                    if (i > 0) {
+                        const [pLat, pLng] = coords[i - 1];
+                        const bearing = calculateBearing(pLat, pLng, lat, lng);
+                        const el = tm.truck.getElement();
+                        if (el) el.style.transform = `rotate(${bearing}deg)`;
+                    }
+                    tm.truck.setLatLng([lat, lng]);
+                    tm.label.setLatLng([lat, lng]);
+                    if (routeLines[truckId]) {
+                        routeLines[truckId].setLatLngs(coords.slice(i).map(c => [c[0], c[1]]));
+                    }
+                }
+
+                // Delivery detection
+                const pendingOrders = (simulationData.orders || []).filter(
+                    o => o.type === 'order' && o.delivery_status === 'pending' && o.source !== 'background'
+                );
+                pendingOrders.forEach(order => {
+                    if (!order._animDelivered && markers[order.id]) {
+                        const dist = map.distance([lat, lng], [order.lat, order.lng]);
+                        if (dist < 120) {
+                            order._animDelivered = true;
+                            order.delivery_status = 'delivered';
+                            markers[order.id].setIcon(L.divIcon({
+                                html: '<div style="background:#10B981;width:28px;height:28px;border-radius:50%;border:2px solid white;box-shadow:0 0 8px rgba(16,185,129,0.5);display:flex;align-items:center;justify-content:center;font-size:13px;">✅</div>',
+                                iconSize: [28, 28], iconAnchor: [14, 14], className: ''
+                            }));
+                            permanentlyCollectedLocations.add(order.id);
+                            fetch('/api/update-order-status', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({id: order.id, status: 'delivered'})
+                            }).catch(() => {});
+                            updateStatistics();
+                        }
+                    }
+                });
+
+                const pct = Math.round((i / total) * 100);
+                const bar = document.getElementById(`truckBar_${truckId}`);
+                const lbl = document.getElementById(`truckPct_${truckId}`);
+                if (bar) bar.style.width = pct + '%';
+                if (lbl) lbl.textContent = pct + '%';
+                updateOverallProgress();
+
+                i++;
+                animationTimers[truckId] = setTimeout(step, 120);
+            }
+            step();
+        }
+
+        function updateOverallProgress() {
+            const trucks = Object.keys(truckMarkers);
+            if (!trucks.length) return;
+            let total = 0;
+            trucks.forEach(id => {
+                const bar = document.getElementById(`truckBar_${id}`);
+                if (bar) {
+                    const width = parseFloat(bar.style.width) || 0;
+                    total += Math.min(100, Math.max(0, width));
+                }
+            });
+            const avg = Math.round(total / trucks.length);
+            const safeAvg = Math.min(100, Math.max(0, avg));
+            document.getElementById('overallProgress').textContent = safeAvg + '%';
+            document.getElementById('overallProgressFill').style.width = safeAvg + '%';
+        }
+
+        function renderPerTruckMetrics(routes) {
+            console.log('🔍 DEBUG: renderPerTruckMetrics called with:', routes);
+            
+            // Safety check
+            if (!routes || !Array.isArray(routes)) {
+                console.error('❌ Invalid routes data in renderPerTruckMetrics:', routes);
+                return;
+            }
+            
+            const colors = ['#DC2626', '#2563EB', '#059669', '#EA580C', '#7C3AED'];
+            const container = document.getElementById('perTruckMetrics');
+            if (!container) {
+                console.error('❌ perTruckMetrics container not found');
+                return;
+            }
+            container.innerHTML = '';
+
+            routes.forEach((r, i) => {
+                const color = colors[i % colors.length];
+                const eff = r.efficiency_pct || 0;
+                const effColor = eff >= 70 ? '#059669' : eff >= 40 ? '#D97706' : '#DC2626';
+                const effLabel = eff >= 70 ? 'High' : eff >= 40 ? 'Medium' : 'Low';
+
+                const card = document.createElement('div');
+                card.className = 'truck-stat-card';
+                card.style.cssText = `border-left-color:${color}; background:${color}11;`;
+                card.innerHTML = `
+                    <div class="truck-stat-header">
+                        <span class="truck-stat-name" style="color:${color}">🚚 ${r.vehicle_id}</span>
+                        <span class="efficiency-badge" style="background:${effColor}">${effLabel} ${eff}%</span>
+                    </div>
+                    <div class="truck-stat-grid">
+                        <div class="truck-stat-item">
+                            <div class="truck-stat-label">🛣️ Distance</div>
+                            <div class="truck-stat-value">${r.total_distance_km}km</div>
+                        </div>
+                        <div class="truck-stat-item">
+                            <div class="truck-stat-label">📍 Stops</div>
+                            <div class="truck-stat-value">${r.orders_visited}</div>
+                        </div>
+                        <div class="truck-stat-item">
+                            <div class="truck-stat-label">⏱️ Est. Time</div>
+                            <div class="truck-stat-value">${r.estimated_time_min}min</div>
+                        </div>
+                    </div>`;
+                container.appendChild(card);
+            });
+        }
+
+        function calculateBearing(lat1, lng1, lat2, lng2) {
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const y = Math.sin(dLng) * Math.cos(lat2 * Math.PI / 180);
+            const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+                      Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLng);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+        
+        // Toggle order status when marker is clicked
+        function toggleOrderStatus(orderId) {
+            const order = simulationData.orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            // Toggle between pending and delivered
+            const newStatus = order.delivery_status === 'pending' ? 'delivered' : 'pending';
+            order.delivery_status = newStatus;
+            
+            // Update marker icon
+            if (markers[orderId]) {
+                markers[orderId].setIcon(makeOrderIcon(order));
+            }
+            
+            // Update statistics
+            updateStatistics();
+            
+            // Update backend
+            fetch('/api/update-order-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: orderId, status: newStatus })
+            }).catch(error => {
+                console.error('Error updating order status:', error);
+            });
+        }
+        
+        // 🔥 NEW: Get house icon based on source and status
+        function getLocationIcon(location) {
+            // 🔥 PRIORITY 1: collected MUST RETURN IMMEDIATELY
+            if (location.collected === true || permanentlyCollectedLocations.has(location.id)) {
+                return L.divIcon({
+                    html: `
+                    <div style="position:relative;width:28px;height:28px;">
+                        
+                        <!-- Base house/bin -->
+                        <div style="
+                            background: ${location.type === 'bin' ? '#F97316' : '#F97316'};
+                            width:28px;height:28px;
+                            border-radius:50%;
+                            display:flex;
+                            align-items:center;
+                            justify-content:center;
+                            border:2px solid white;
+                            font-size:14px;
+                            box-shadow:0 2px 6px rgba(0,0,0,0.2);
+                        ">${location.type === 'bin' ? '🗑️' : '🏠'}</div>
+                        
+                        <!-- Check overlay -->
+                        <div style="
+                            position:absolute;
+                            top:-4px;
+                            right:-4px;
+                            background:#10B981;
+                            width:14px;
+                            height:14px;
+                            border-radius:50%;
+                            display:flex;
+                            align-items:center;
+                            justify-content:center;
+                            font-size:10px;
+                            border:2px solid white;
+                            box-shadow:0 2px 4px rgba(0,0,0,0.3);
+                        ">✓</div>
+                    </div>
+                    `,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14],
+                    className: ''
+                });
+            }
+            
+            let color = '#6B7280'; // default (gray icon background)
+            let emoji = '🏠';
+            
+            // 🔥 PRIORITY 2: Check completed houses list
+            if (simulationData.completedHouses && simulationData.completedHouses.includes(location.id)) {
+                if (location.type === 'bin') {
+                    // 🟠 Orange checkmark for collected bins
+                    color = '#F97316';
+                    emoji = '✅';
+                } else {
+                    // 🟢 Green checkmark for collected houses
+                    color = '#10B981';
+                    emoji = '✅';
+                }
+            }
+
+            // 🔵 App registered houses
+            if (location.source === 'live') {
+                color = '#3B82F6';
+            }
+
+            // 🗑️ Community bins (different from houses)
+            if (location.type === 'bin') {
+                emoji = '🗑️';
+                color = '#6B7280'; // default gray
+
+                // IoT FULL — orange bin
+                if (location.status === 'FULL') {
+                    color = '#F97316';
+                }
+                // IoT EMPTY — force gray regardless of has_garbage
+                else if (location.status === 'EMPTY') {
+                    color = '#6B7280';
+                }
+            }
+
+            return L.divIcon({
+                html: `<div style="background:${color};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;font-size:12px;">${emoji}</div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12],
+                className: ''
+            });
+        }
+
+        let permanentlyCollectedLocations = new Set();
+        let isResetting = false;
+        let selectedHouseIds = new Set();
+        let viewMode = 'all';
+
+        // Event Listeners
+        // CSV upload handler
+        document.getElementById('uploadCsvBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('csvUpload');
+            
+            // If no file selected, open file picker
+            if (!fileInput.files || fileInput.files.length === 0) {
+                fileInput.click();
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const form = new FormData();
+            form.append('file', file);
+
+            try {
+                document.getElementById('uploadCsvBtn').textContent = '⏳ Uploading...';
+                document.getElementById('uploadCsvBtn').disabled = true;
+                const res = await fetch('/upload-csv', { method: 'POST', body: form });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`✅ Uploaded ${data.saved} of ${data.total} rows. Refreshing map...`);
+                    // Trigger a backend reset to reload the uploaded CSV into simulation state
+                    await fetch('/api/reset_simulation', { method: 'POST' });
+                    // Poll simulation status then rebuild markers
+                    setTimeout(async () => {
+                        const statusRes = await fetch('/api/get_simulation_status');
+                        const statusData = await statusRes.json();
+                        if (statusData.success) {
+                            simulationData.orders = statusData.simulation.orders || [];
+                            simulationData.pendingOrders = statusData.simulation.pending_orders || [];
+                            simulationData.distributionCenters = statusData.simulation.distribution_centers || [];
+                            addOrderMarkers();
+                            updateStatistics();
+                            document.getElementById('optimizeRouteBtn').disabled = false;
+                        }
+                    }, 1500);
+                } else {
+                    alert('❌ Upload failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('❌ Upload error: ' + err.message);
+            } finally {
+                document.getElementById('uploadCsvBtn').textContent = '📁 Upload CSV & Load Map';
+                document.getElementById('uploadCsvBtn').disabled = false;
+                fileInput.value = '';
+            }
+        });
+        
+        // Open file picker when file input changes
+        document.getElementById('csvUpload').addEventListener('change', async () => {
+            const fileInput = document.getElementById('csvUpload');
+            if (!fileInput.files || fileInput.files.length === 0) return;
+            
+            const file = fileInput.files[0];
+            const form = new FormData();
+            form.append('file', file);
+
+            try {
+                document.getElementById('uploadCsvBtn').textContent = '⏳ Uploading...';
+                document.getElementById('uploadCsvBtn').disabled = true;
+                const res = await fetch('/upload-csv', { method: 'POST', body: form });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`✅ Uploaded ${data.saved} of ${data.total} rows. Refreshing map...`);
+                    // Trigger a backend reset to reload the uploaded CSV into simulation state
+                    await fetch('/api/reset_simulation', { method: 'POST' });
+                    // Poll simulation status then rebuild markers
+                    setTimeout(async () => {
+                        const statusRes = await fetch('/api/get_simulation_status');
+                        const statusData = await statusRes.json();
+                        if (statusData.success) {
+                            simulationData.orders = statusData.simulation.orders || [];
+                            simulationData.pendingOrders = statusData.simulation.pending_orders || [];
+                            simulationData.distributionCenters = statusData.simulation.distribution_centers || [];
+                            addOrderMarkers();
+                            updateStatistics();
+                            document.getElementById('optimizeRouteBtn').disabled = false;
+                        }
+                    }, 1500);
+                } else {
+                    alert('❌ Upload failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('❌ Upload error: ' + err.message);
+            } finally {
+                document.getElementById('uploadCsvBtn').textContent = '📁 Upload CSV & Load Map';
+                document.getElementById('uploadCsvBtn').disabled = false;
+                fileInput.value = '';
+            }
+        });
+
+        document.getElementById('optimizeRouteBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('optimizeRouteBtn');
+            btn.textContent = '⏳ Optimizing... (may take 1-2 min)';
+            btn.disabled = true;
+            try {
+            // Get vehicle count from input field
+            const vehicleCount = parseInt(document.getElementById('vehicleCount').value) || 3;
+            console.log(`🚛 Using ${vehicleCount} vehicles for optimization`);
+                
+                const response = await fetch('/api/optimize_route', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vehicle_count: vehicleCount })
+                });
+            const data = await response.json();
+            if (data.success) {
+                console.log('🔍 DEBUG: Received data:', data);
+                console.log('🔍 DEBUG: multi_vehicle_routes:', data.multi_vehicle_routes);
+                
+                // Check if routes data exists and is valid
+                if (!data || !data.multi_vehicle_routes || !Array.isArray(data.multi_vehicle_routes)) {
+                    console.error('❌ Invalid routes data:', data ? data.multi_vehicle_routes : 'No data received');
+                    btn.textContent = 'Optimize Delivery Routes';
+                    btn.disabled = false;
+                    console.error('❌ Full response data:', data);
+                    return;
+                }
+                
+                simulationData.multiVehicleRoutes = data.multi_vehicle_routes;
+                simulationData.activeVehicles = data.active_vehicles || [];
+                simulationData.routeOptimized = true;
+                window.routesDrawnOnce = false; // allow immediate redraw on next poll
+
+                drawOptimizedRoute(data.multi_vehicle_routes);
+
+                // Summary metrics with safety checks
+                const routes = data.multi_vehicle_routes || [];
+                const avgEff = routes.length > 0 ? Math.round(routes.reduce((s, r) => s + (r.efficiency_pct || 0), 0) / routes.length) : 0;
+                const fuelSaved = Math.round(avgEff * 0.22);
+                const co2Saved = Math.round(fuelSaved * 0.65);
+                document.getElementById('routeMetricsCard').style.display = 'block';
+                document.getElementById('routeDistance').textContent = (data.total_distance_km || 0) + 'km';
+                document.getElementById('routeStops').textContent = data.orders_visited || 0;
+                document.getElementById('routeEfficiency').textContent = avgEff + '%';
+                document.getElementById('fuelSaved').textContent = fuelSaved + '%';
+                document.getElementById('co2Reduced').textContent = co2Saved + '%';
+
+                renderPerTruckMetrics(data.multi_vehicle_routes);
+                // 🔥 CRITICAL: Ensure deploy truck button stays enabled after optimization
+                const spawnBtn = document.getElementById('spawnTruckBtn');
+                if (spawnBtn) {
+                    spawnBtn.disabled = false;
+                    console.log('✅ Deploy truck button enabled after optimization');
+                }
+                btn.textContent = '✅ Routes Optimized';
+            } else {
+                btn.textContent = 'Optimize Delivery Routes';
+                btn.disabled = false;
+                console.error('❌ Optimization failed:', data.error || 'Unknown error');
+                // Show error in status instead of alert
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = 'position:fixed;top:20px;right:20px;background:#DC2626;color:white;padding:10px 15px;border-radius:8px;z-index:9999;max-width:300px;';
+                errorDiv.innerHTML = `<strong>⚠️ Optimization Failed</strong><br>${data.error || 'Unknown error'}`;
+                document.body.appendChild(errorDiv);
+                setTimeout(() => {
+                    if (document.body.contains(errorDiv)) {
+                        document.body.removeChild(errorDiv);
+                    }
+                }, 5000);
+            }
+            } catch (err) {
+                btn.textContent = 'Optimize Delivery Routes';
+                btn.disabled = false;
+                alert('Request failed: ' + err.message);
+            }
+        });
+        
+        document.getElementById('spawnTruckBtn').addEventListener('click', async () => {
+            console.log('🚛 Spawn truck button clicked');
+            try {
+                const response = await fetch('/api/spawn_truck', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                console.log('🚛 Spawn truck response status:', response.status);
+                const responseData = await response.json();
+                console.log('🚛 Spawn truck response data:', responseData);
+                
+                if (responseData.success) {
+                    simulationData.vehicleSpawned = true;
+                    simulationData.vehiclePositions = responseData.vehicle_positions;
+                    simulationData.activeVehicles = Object.keys(responseData.vehicle_positions); // 🔥 FIX: Set active vehicles
+                    spawnTruck();
+                    // 🔥 CRITICAL: Do NOT disable deploy truck button after successful spawn
+                    // document.getElementById('spawnTruckBtn').disabled = true;
+                    console.log('✅ Fleet deployed:', responseData.message);
+                } else {
+                    console.error('❌ Failed to spawn trucks:', responseData.error);
+                    alert('Failed to spawn trucks: ' + responseData.error);
+                }
+            } catch (error) {
+                console.error('❌ Error spawning trucks:', error);
+                alert('Error spawning trucks: ' + error.message);
+            }
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset the entire simulation?')) {
+                resetSimulation();
+            }
+        });
+
+        async function resetSimulation() {
+            try {
+                // Step 1: Block all polling immediately
+                isResetting = true;
+
+                // Step 2: Stop ALL animation timers
+                Object.keys(animationTimers).forEach(id => {
+                    clearTimeout(animationTimers[id]);
+                    delete animationTimers[id];
+                });
+
+                // Step 3: Nuke every non-tile layer (routes, trucks, checkmarks, order markers, everything)
+                // First clear the orderLayer group's children explicitly
+                if (window.orderLayer) {
+                    window.orderLayer.clearLayers();
+                }
+                const layersToRemove = [];
+                map.eachLayer(layer => {
+                    if (!(layer instanceof L.TileLayer)) layersToRemove.push(layer);
+                });
+                layersToRemove.forEach(l => map.removeLayer(l));
+
+                // Step 4: Reset all layer tracking objects
+                // Remove any markers that were added directly to map (delivered checkmarks)
+                Object.values(markers).forEach(m => { if (m && map.hasLayer(m)) map.removeLayer(m); });
+                routeLines = {};
+                truckMarkers = {};
+                markers = {};
+                window.orderLayer = null;
+                window.destinationMarkers = {};
+
+                // Step 5: Clear all frontend state
+                permanentlyCollectedLocations.clear();
+                // Reset _animDelivered flags on all orders so they can be re-delivered
+                (simulationData.orders || []).forEach(o => { delete o._animDelivered; });
+                window.routesDrawnOnce = false;
+                truckPathProgress = {};
+                routeFinished = {};
+                mapFitted = false;
+                simulationData = {
+                    orders: [], pendingOrders: [], deliveredOrders: [],
+                    distributionCenters: [], completedOrders: [],
+                    multiVehicleRoutes: [], activeVehicles: [],
+                    routeOptimized: false, cityGenerated: false,
+                    orderUploadEnded: false, vehicle_positions: {},
+                    vehicleSpawned: false, vehiclePositions: {}
+                };
+                markersInitialized = false;
+                // Immediately update stats to show zeros
+                updateStatistics();
+                // Stop animation timers so old trucks don't keep moving — already done in Step 2 above
+
+                // Step 6: Reset UI buttons and stats immediately
+                document.getElementById('optimizeRouteBtn').disabled = true;
+                document.getElementById('optimizeRouteBtn').textContent = 'Optimize Delivery Routes';
+                document.getElementById('spawnTruckBtn').disabled = true;
+                document.getElementById('routeMetricsCard').style.display = 'none';
+                document.getElementById('fleetStatus').style.display = 'none';
+                document.getElementById('totalOrders').innerText = '0';
+                document.getElementById('deliveredOrdersCount').innerText = '0';
+                document.getElementById('pendingOrdersCount').innerText = '0';
+                document.getElementById('pendingOrders').innerText = '0';
+                document.getElementById('overallProgress').textContent = '0%';
+                document.getElementById('overallProgressFill').style.width = '0%';
+                
+                // Step 7: Clear weather monitoring (no-op if not defined)
+                if (typeof clearWeatherMonitoring === 'function') clearWeatherMonitoring();
+                
+                // Step 8: Call backend reset
+                console.log('🔄 Calling backend reset...');
+                const response = await fetch('/api/reset_simulation', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('✅ Backend reset successful');
+                    // Step 9: Wait for backend to finish regenerating, then do a hard map rebuild
+                    setTimeout(async () => {
+                        // Fetch fresh orders from backend
+                        const statusRes = await fetch('/api/get_simulation_status');
+                        const statusData = await statusRes.json();
+                        if (statusData.success) {
+                            const freshOrders = statusData.simulation.orders || [];
+                            // Force every order to pending — belt-and-suspenders
+                            freshOrders.forEach(o => {
+                                o.delivery_status = 'pending';
+                                delete o._animDelivered;
+                            });
+                            simulationData.orders = freshOrders;
+                            simulationData.pendingOrders = statusData.simulation.pending_orders || [];
+                            simulationData.deliveredOrders = [];
+                            simulationData.multiVehicleRoutes = [];
+                            simulationData.activeVehicles = [];
+                            simulationData.routeOptimized = false;
+                        }
+                        // Rebuild markers from scratch with fresh data
+                        markersInitialized = false;
+                        mapFitted = false;
+                        addOrderMarkers();
+                        markersInitialized = true;
+                        updateStatistics();
+                        document.getElementById('optimizeRouteBtn').disabled = false;
+                        document.getElementById('optimizeRouteBtn').textContent = 'Optimize Delivery Routes';
+                        isResetting = false;
+                        console.log('✅ Reset complete — map rebuilt with fresh orders');
+                    }, 2000);
+                } else {
+                    console.error('❌ Backend reset failed:', data.error);
+                    isResetting = false;
+                }
+            } catch (e) {
+                isResetting = false;
+                console.error('Reset error:', e);
+            }
+        }
+        
+        function showDisruptionPanel() {
+            const panel = document.getElementById('disruptionPanel');
+            if (panel) {
+                panel.style.display = 'block';
+            }
+        }
+        
+        async function checkDisruptionStatus() {
+            try {
+                const response = await fetch('/api/weather-status');
+                const result = await response.json();
+                
+                // Update disruption panel with actionable insights
+                const disruptionDataDiv = document.getElementById('disruptionData');
+                if (disruptionDataDiv && result.success) {
+                    let disruptionHTML = '<div style="font-size:13px;">';
+                    
+                    // Risk assessment
+                    if (result.risk_assessment) {
+                        const risk = result.risk_assessment;
+                        const riskColor = risk.risk_required ? '#DC2626' : '#10B981';
+                        disruptionHTML += `
+                            <div style="margin-bottom:12px;padding:8px;background:${riskColor}20;border-left:4px solid ${riskColor};border-radius:4px;">
+                                <div style="font-weight:bold;color:${riskColor};margin-bottom:4px;">${risk.risk_level}</div>
+                                <div style="color:#374151;font-size:12px;line-height:1.3;">${risk.recommendation}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Route impacts
+                    if (result.route_impacts && result.route_impacts.length > 0) {
+                        disruptionHTML += '<div style="margin-bottom:8px;"><strong>🚚 Affected Routes:</strong></div>';
+                        result.route_impacts.forEach(impact => {
+                            disruptionHTML += `
+                                <div style="margin-bottom:8px;padding:6px;background:#FEF3C7;border-radius:4px;font-size:12px;">
+                                    <div style="font-weight:bold;color:#92400E;">${impact.vehicle_id}</div>
+                                    <div style="color:#78350F;">${impact.recommendation}</div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        disruptionHTML += '<div style="color:#10B981;font-size:12px;margin-top:8px;">✅ No route disruptions detected</div>';
+                    }
+                    
+                    // Fleet status
+                    disruptionHTML += `
+                        <div style="margin-top:8px;padding-top:6px;border-top:1px solid #374151;font-size:10px;color:#9CA3AF;">
+                            📦 Total: ${result.total_deliveries} | ⏳ Pending: ${result.pending_deliveries}
+                        </div>
+                    `;
+                    
+                    disruptionHTML += '</div>';
+                    disruptionDataDiv.innerHTML = disruptionHTML;
+                }
+            } catch (error) {
+                console.error('Disruption status check error:', error);
+            }
+        }
+        
+                
+        // ML Risk Score — calls route_engine on port 5001
+        async function checkMLRiskScore() {
+            const rain  = parseFloat(document.getElementById('rs_rain').value) || 0;
+            const wind  = parseFloat(document.getElementById('rs_wind').value) || 0;
+            const vis   = parseFloat(document.getElementById('rs_vis').value) || 10;
+            const delay = parseFloat(document.getElementById('rs_delay').value) || 0;
+            const resultDiv = document.getElementById('riskScoreResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'Checking...';
+            try {
+                const res = await fetch(`/risk-score?rain_mm=${rain}&wind_speed_ms=${wind}&visibility_km=${vis}&traffic_delay_min=${delay}&temperature_c=25`);
+                const data = await res.json();
+                if (data.success) {
+                    const score = data.risk_score;
+                    const color = score >= 0.80 ? '#DC2626' : score >= 0.65 ? '#F59E0B' : score >= 0.40 ? '#D97706' : '#10B981';
+                    resultDiv.style.background = color + '15';
+                    resultDiv.style.border = '1px solid ' + color;
+                    resultDiv.innerHTML = `
+                        <div style="font-weight:700;color:${color};font-size:20px;">${(score * 100).toFixed(0)}% Risk</div>
+                        <div style="color:${color};font-weight:600;">${data.severity.toUpperCase()}</div>
+                        <div style="color:#374151;font-size:12px;margin-top:4px;">${data.recommendation}</div>
+                        ${data.is_disruption ? '<div style="color:#DC2626;font-weight:600;margin-top:6px;">⚠️ DISRUPTION TRIGGERED</div>' : '<div style="color:#10B981;margin-top:6px;">✅ Route safe to proceed</div>'}
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<span style="color:#DC2626;">Error: ' + (data.error || 'Unknown') + '</span>';
+                }
+            } catch(e) {
+                resultDiv.innerHTML = '<span style="color:#DC2626;">Route Engine offline. Start route_engine.py on port 5001.</span>';
+            }
+        }
+
+        // Track whether markers have been drawn at least once
+        let markersInitialized = false;
+
+        // Check simulation status
+        async function checkSimulationStatus() {
+            if (isResetting) return;
+            try {
+                const res = await fetch('/api/get_simulation_status');
+                const data = await res.json();
+                if (data.success) {
+                    const sim = data.simulation;
+
+                    // Only update orders from backend if animation is NOT running
+                    // (prevents backend from overwriting frontend delivery state mid-animation)
+                    const animRunning = Object.keys(animationTimers).length > 0;
+                    if (!animRunning) {
+                        simulationData.orders = sim.orders || [];
+                    }
+                    simulationData.pendingOrders = sim.pending_orders || [];
+                    simulationData.deliveredOrders = sim.delivered_orders || [];
+                    simulationData.multiVehicleRoutes = sim.multi_vehicle_routes || [];
+                    // Only update activeVehicles from backend if trucks are NOT deployed
+                    // (prevents poll from overwriting the correct count set by spawnTruck)
+                    if (!simulationData.vehicleSpawned) {
+                        simulationData.activeVehicles = sim.active_vehicles || [];
+                    }
+
+                    // Draw markers only on first load (not on every poll — animation handles icon updates)
+                    if (!markersInitialized && simulationData.orders.length > 0) {
+                        markersInitialized = true;
+                        addOrderMarkers();
+                        document.getElementById('optimizeRouteBtn').disabled = false;
+                    }
+
+                    updateStatistics();
+                    updateFleetStatus();
+                }
+            } catch (error) {
+                console.error('Error checking simulation status:', error);
+            }
+        }
+
+        // Update fleet status
+        function updateFleetStatus() {
+            const fleetDiv = document.getElementById('fleetStatus');
+            const metricsDiv = document.getElementById('truckStatusList');
+            const activeTrucksCount = document.getElementById('activeTrucksCount');
+            
+            // Hide fleet status initially
+            fleetDiv.style.display = 'none';
+            
+            // Only show if we have valid data AND routes are optimized
+            if (simulationData.activeVehicles && Array.isArray(simulationData.activeVehicles) && simulationData.activeVehicles.length > 0 && simulationData.routeOptimized) {
+                fleetDiv.style.display = 'block';
+                
+                // Update active trucks count
+                if (activeTrucksCount) {
+                    activeTrucksCount.textContent = simulationData.activeVehicles.length;
+                }
+                
+                // Update individual truck status
+                let html = '';
+                simulationData.activeVehicles.forEach(vehicleId => {
+                    const progress = truckPathProgress[vehicleId] || 0;
+                    const route = simulationData.multiVehicleRoutes.find(r => r.vehicle_id === vehicleId);
+                    const total = route && route.route_coordinates ? route.route_coordinates.length : 0;
+                    const percentage = total > 0 ? Math.round((progress / total) * 100) : 0;
+                    
+                    html += `
+                        <div style="margin-bottom:8px;padding:8px;background:rgba(255,255,255,0.1);border-radius:4px;font-size:12px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span style="font-weight:bold;">🚚 ${vehicleId}</span>
+                                <span id="truckPct_${vehicleId}">${percentage}%</span>
+                            </div>
+                            <div class="progress-bar" style="height:4px;margin-top:4px;">
+                                <div id="truckBar_${vehicleId}" class="progress-fill" style="width:${percentage}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                metricsDiv.innerHTML = html;
+            } else {
+                // Hide fleet status if no active vehicles
+                fleetDiv.style.display = 'none';
+                if (activeTrucksCount) {
+                    activeTrucksCount.textContent = '0';
+                }
+            }
+        }
+
+        // Initialize
+        initMap();
+        updateStatistics();
+        checkSimulationStatus();
+        setInterval(checkSimulationStatus, 3000);
+
+        // Force full reload if page is restored from bfcache so stale markers never show
+        window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+    </script>
+
+</body>
+</html>
